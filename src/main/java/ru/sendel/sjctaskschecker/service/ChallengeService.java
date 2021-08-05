@@ -1,0 +1,141 @@
+package ru.sendel.sjctaskschecker.service;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.NoSuchElementException;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import javax.transaction.Transactional;
+import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import ru.sendel.sjctaskschecker.api.v1.response.StageResult;
+import ru.sendel.sjctaskschecker.codewars.CompetitorCompletedChallenges;
+import ru.sendel.sjctaskschecker.codewars.CompetitorCompletedChallenges.Challenge;
+import ru.sendel.sjctaskschecker.model.Competitor;
+import ru.sendel.sjctaskschecker.model.Solution;
+import ru.sendel.sjctaskschecker.repository.CompetitorRepository;
+import ru.sendel.sjctaskschecker.repository.SolutionRepository;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class ChallengeService {
+
+    private final CompetitorRepository competitorRepository;
+    private final SolutionRepository solutionRepository;
+
+    @Value("#{'${challenge.tasks}'.split(',')}")
+    private List<String> tasks;
+
+    @Value("${codewars.user}")
+    private String userApi;
+
+    @Value("${codewars.user.completed}")
+    private String completedApi;
+
+    public StageResult refreshResultOfTask(String taskId) {
+        if (!tasks.contains(taskId)) {
+            log.error("(обновление данных о задачу) Задача {} не найдена!", taskId);
+            throw new NoSuchElementException("Задача не найдена");
+        }
+
+        List<Competitor> competitorWithoutSolution = competitorRepository
+            .findAllWithoutSolution(taskId);
+        log.info("Задачу #{} не выполнили {} участников", taskId, competitorWithoutSolution.size());
+
+        Map<Competitor, CompetitorCompletedChallenges> competitorCompletedChallenges =
+            getCompetitorsInfo(competitorWithoutSolution);
+
+        List<Solution> newSolutions = competitorCompletedChallenges.entrySet()
+            .stream()
+            .filter(entry -> entry.getValue().isCompleteChallenge(taskId))
+            .collect(Collectors.toMap(Entry::getKey,
+                entry -> entry.getValue().getCompletedChallenge(taskId)))
+            .entrySet().stream()
+            .map(entry -> (Solution.build(entry.getKey(), entry.getValue().get())))
+            .collect(Collectors.toList());
+
+        log.info("Обновление решений пользователей {}", newSolutions);
+
+        solutionRepository.saveAll(newSolutions);
+
+        log.info("Обновление закончено");
+
+        return StageResult.builder()
+            .taskId(newSolutions.toString())
+            .build();
+    }
+
+    public String dashboard() {
+        return "";
+    }
+
+
+    private Map<Competitor, CompetitorCompletedChallenges> getCompetitorsInfo(
+        Collection<Competitor> competitors) {
+        Map<Competitor, CompetitorCompletedChallenges> completedChallengesMap = new HashMap<>();
+
+        for (var competitor : competitors) {
+            completedChallengesMap.put(competitor, getCompetitorInfo(competitor));
+        }
+
+        return completedChallengesMap;
+    }
+
+    private CompetitorCompletedChallenges getCompetitorInfo(Competitor competitor) {
+        RestTemplate restTemplate = new RestTemplate();
+        var completedChallenges = restTemplate
+            .getForObject(userApiInfoUrl(competitor), CompetitorCompletedChallenges.class);
+
+        for (int pageNumber = 1; pageNumber < completedChallenges.getTotalPages(); pageNumber++) {
+            var nextPage = restTemplate.getForObject(userApiInfoUrlWithPage(competitor, pageNumber),
+                CompetitorCompletedChallenges.class);
+            completedChallenges.addToData(nextPage);
+        }
+        return completedChallenges;
+    }
+
+    private String userApiInfoUrl(Competitor competitor) {
+        return userApi + competitor.getCodewarsName() + completedApi;
+    }
+
+    private String userApiInfoUrlWithPage(Competitor competitor, int pageNumber) {
+        return userApi + competitor.getCodewarsName() + completedApi + "?page=" + pageNumber;
+    }
+
+    @Transactional
+    public void addTestData() {
+
+        Competitor competitor = new Competitor();
+        competitor.setTelegramId("1111");
+        competitor.setCodewarsName("sendelufa");
+        competitor.setName("sendel");
+
+        competitorRepository.save(competitor);
+
+        Competitor competitor2 = new Competitor();
+        competitor2.setTelegramId("2222");
+        competitor2.setCodewarsName("KofeNata");
+        competitor2.setName("Natalia");
+
+        competitorRepository.save(competitor2);
+
+        Solution solution = new Solution();
+        solution.setSolutionSubmitTime(LocalDateTime.now());
+        solution.setTaskId("5583090cbe83f4fd8c000051");
+        solution.setCompetitor(competitor);
+        solution.setLastCheckSolution(LocalDateTime.now());
+        solution.setDone(true);
+
+        solutionRepository.save(solution);
+    }
+}
