@@ -26,4 +26,9 @@ public class MainController {
     public void addTestData(){
         challengeService.addTestData();
     }
+
+    @GetMapping("/dashboard")
+    public String dashboard(){
+        return challengeService.dashboard();
+    }
 }

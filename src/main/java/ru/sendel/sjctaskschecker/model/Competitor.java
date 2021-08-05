@@ -28,8 +28,7 @@ public class Competitor {
     @NotNull
     private String name;
 
-    @Value("true")
-    private boolean isActive;
+    private boolean isActive = true;
 
     @NotNull
     @NotEmpty

@@ -1,17 +1,14 @@
 package ru.sendel.sjctaskschecker.service;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.transaction.Transactional;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,9 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import ru.sendel.sjctaskschecker.api.v1.response.StageResult;
 import ru.sendel.sjctaskschecker.codewars.CompetitorCompletedChallenges;
-import ru.sendel.sjctaskschecker.codewars.CompetitorCompletedChallenges.Challenge;
 import ru.sendel.sjctaskschecker.model.Competitor;
 import ru.sendel.sjctaskschecker.model.Solution;
+import ru.sendel.sjctaskschecker.model.Task;
 import ru.sendel.sjctaskschecker.repository.CompetitorRepository;
 import ru.sendel.sjctaskschecker.repository.SolutionRepository;
 
@@ -32,9 +29,7 @@ public class ChallengeService {
 
     private final CompetitorRepository competitorRepository;
     private final SolutionRepository solutionRepository;
-
-    @Value("#{'${challenge.tasks}'.split(',')}")
-    private List<String> tasks;
+    private final TaskService taskService;
 
     @Value("${codewars.user}")
     private String userApi;
@@ -43,7 +38,7 @@ public class ChallengeService {
     private String completedApi;
 
     public StageResult refreshResultOfTask(String taskId) {
-        if (!tasks.contains(taskId)) {
+        if (!taskService.getAllTasksId().contains(taskId)) {
             log.error("(обновление данных о задачу) Задача {} не найдена!", taskId);
             throw new NoSuchElementException("Задача не найдена");
         }
@@ -76,7 +71,15 @@ public class ChallengeService {
     }
 
     public String dashboard() {
-        return "";
+        String taskNumber = "5583090cbe83f4fd8c000051";
+        Task task = taskService.getTaskByNumber(taskNumber);
+        List<Competitor> actualCompetitors = competitorRepository.findAllByIsActive(true);
+
+        StringBuilder dashboard = new StringBuilder();
+        dashboard.append(String.format("**%s kyu** - %s<br/ >%nhttps://www.codewars.com/kata/%s",
+            task.getDifficult(), task.getName(), task.getNumber()));
+        dashboard.append(actualCompetitors);
+        return dashboard.toString();
     }
 
 
