@@ -2,6 +2,7 @@ package ru.sendel.sjctaskschecker.service;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,7 @@ import javax.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import ru.sendel.sjctaskschecker.api.v1.response.StageResult;
@@ -36,6 +38,7 @@ public class ChallengeService {
 
     @Value("${codewars.user.completed}")
     private String completedApi;
+    private final long milliSecondsBetweenUpdateSolution = 1 * 60 * 1000;
 
     public StageResult refreshResultOfTask(String taskId) {
         if (!taskService.getAllTasksId().contains(taskId)) {
@@ -70,16 +73,51 @@ public class ChallengeService {
             .build();
     }
 
+    @Scheduled(fixedRate = milliSecondsBetweenUpdateSolution)
+    public void scheduleRefresh(){
+        refreshResultOfTask("5980de1a17d1fee3db000059");
+    }
+
     public String dashboard() {
-        String taskNumber = "5583090cbe83f4fd8c000051";
+        String taskNumber = "5980de1a17d1fee3db000059";
         Task task = taskService.getTaskByNumber(taskNumber);
         List<Competitor> actualCompetitors = competitorRepository.findAllByIsActive(true);
 
         StringBuilder dashboard = new StringBuilder();
-        dashboard.append(String.format("**%s kyu** - %s<br/ >%nhttps://www.codewars.com/kata/%s",
-            task.getDifficult(), task.getName(), task.getNumber()));
-        dashboard.append(actualCompetitors);
-        return dashboard.toString();
+        dashboard.append(
+            String.format("**%s kyu** - %s<br/ >%nhttps://www.codewars.com/kata/%s<br/ >\n<br/ >\n",
+                task.getDifficult(), task.getName(), task.getNumber()));
+
+        //statistic by users done task
+        long amountUsersDoneTask = actualCompetitors.stream()
+            .filter(c -> c.getSolutions().stream().anyMatch(s -> s.getTaskId().equals(taskNumber)))
+            .count();
+
+        StringBuilder taskStatistic = new StringBuilder()
+            .append("Выполнили: ")
+            .append(amountUsersDoneTask)
+            .append("/")
+            .append(actualCompetitors.size())
+            .append("<br>\n");
+
+
+        //list of competitors
+        actualCompetitors.sort(Comparator.comparing(Competitor::getName));
+        StringBuilder listOfCompetitors = new StringBuilder();
+        for (int i = 0; i < actualCompetitors.size(); i++) {
+            listOfCompetitors.append(i + 1)
+                .append(". ")
+                .append(actualCompetitors.get(i)
+                    .getSolutions()
+                    .stream()
+                    .anyMatch(s -> s.getTaskId().equals(taskNumber)) ? "✅" : "❔")
+                .append(" @")
+                .append(actualCompetitors.get(i).getName())
+                .append("<br>\n");
+        }
+        return dashboard
+            .append(taskStatistic)
+            .append(listOfCompetitors).toString();
     }
 
 
