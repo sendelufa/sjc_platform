@@ -1,23 +1,22 @@
 package ru.sendel.sjctaskschecker.service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
-import javax.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import ru.sendel.sjctaskschecker.api.v1.response.StageResult;
-import ru.sendel.sjctaskschecker.codewars.CompetitorCompletedChallenges;
+import ru.sendel.sjctaskschecker.codewars.api.CompetitorCompletedChallenges;
+import ru.sendel.sjctaskschecker.codewars.api.TasksPlatform;
 import ru.sendel.sjctaskschecker.model.Competitor;
 import ru.sendel.sjctaskschecker.model.Solution;
 import ru.sendel.sjctaskschecker.model.Task;
@@ -32,151 +31,103 @@ public class ChallengeService {
     private final CompetitorRepository competitorRepository;
     private final SolutionRepository solutionRepository;
     private final TaskService taskService;
+    private final TasksPlatform tasksPlatform;
 
-    @Value("${codewars.user}")
-    private String userApi;
+    private final long milliSecondsBetweenUpdateSolution = 60 * 1000;
 
-    @Value("${codewars.user.completed}")
-    private String completedApi;
-    private final long milliSecondsBetweenUpdateSolution = 1 * 60 * 1000;
+    @Scheduled(fixedRate = milliSecondsBetweenUpdateSolution)
+    public void scheduleRefresh() {
+        refreshResultOfTask(taskService.getActualTask());
+    }
 
-    public StageResult refreshResultOfTask(String taskId) {
-        if (!taskService.getAllTasksId().contains(taskId)) {
-            log.error("(обновление данных о задачу) Задача {} не найдена!", taskId);
-            throw new NoSuchElementException("Задача не найдена");
-        }
+    public Collection<Solution> refreshResultOfTask(String taskId) {
+        return refreshResultOfTask(taskService.getTaskByNumber(taskId));
+    }
 
-        List<Competitor> competitorWithoutSolution = competitorRepository
-            .findAllWithoutSolution(taskId);
+    public Collection<Solution> refreshResultOfTask(Task task) {
+        var taskId = task.getNumber();
+
+        var competitorWithoutSolution = competitorRepository.findAllWithoutSolution(taskId);
         log.info("Задачу #{} не выполнили {} участников", taskId, competitorWithoutSolution.size());
 
-        Map<Competitor, CompetitorCompletedChallenges> competitorCompletedChallenges =
-            getCompetitorsInfo(competitorWithoutSolution);
+        Map<Competitor, CompetitorCompletedChallenges> competitorsAllChallengesData =
+            tasksPlatform.getCompetitorsInfo(competitorWithoutSolution);
 
-        List<Solution> newSolutions = competitorCompletedChallenges.entrySet()
-            .stream()
-            .filter(entry -> entry.getValue().isCompleteChallenge(taskId))
-            .collect(Collectors.toMap(Entry::getKey,
-                entry -> entry.getValue().getCompletedChallenge(taskId)))
-            .entrySet().stream()
-            .map(entry -> (Solution.build(entry.getKey(), entry.getValue().get())))
-            .collect(Collectors.toList());
+        List<Solution> newSolutions =
+            competitorsAllChallengesData.entrySet().stream()
+                .filter(entry -> entry.getValue().isCompleteChallenge(taskId))
+                .map(entry -> (Solution.build(entry.getKey(),
+                    entry.getValue().getCompletedChallenge(taskId).get())))
+                .collect(Collectors.toList());
 
         log.info("Обновление решений пользователей {}", newSolutions);
 
-        solutionRepository.saveAll(newSolutions);
+        List<Solution> solutions = solutionRepository.saveAll(newSolutions);
+        taskService.updateLastCheckStatus(task);
 
         log.info("Обновление закончено");
 
-        return StageResult.builder()
-            .taskId(newSolutions.toString())
-            .build();
-    }
-
-    @Scheduled(fixedRate = milliSecondsBetweenUpdateSolution)
-    public void scheduleRefresh(){
-        refreshResultOfTask("5980de1a17d1fee3db000059");
+        return solutions;
     }
 
     public String dashboard() {
-        String taskNumber = "5980de1a17d1fee3db000059";
-        Task task = taskService.getTaskByNumber(taskNumber);
-        List<Competitor> actualCompetitors = competitorRepository.findAllByIsActive(true);
+        final Task task = taskService.getActualTask();
+        final List<Competitor> actualCompetitors = getActiveCompetitors();
 
-        StringBuilder dashboard = new StringBuilder();
-        dashboard.append(
-            String.format("**%s kyu** - %s<br/ >%nhttps://www.codewars.com/kata/%s<br/ >\n<br/ >\n",
+        String title = DateTimeFormatter.ofPattern("d MMMM").format(task.getStartActiveTime()) +
+            ", Задание №" + task.getNumberInChallenge() + "<br>\n";
+
+        String titleDeadline = "⏰ Дедлайн - " +
+            DateTimeFormatter.ofPattern("d MMMM HH:mm").format(task.getEndActiveTime());
+
+        StringBuilder taskInfo = new StringBuilder();
+        taskInfo.append(
+            String.format(bold("%s kyu") + " - %s<br/ >%nhttps://www.codewars.com/kata/%s",
                 task.getDifficult(), task.getName(), task.getNumber()));
 
         //statistic by users done task
         long amountUsersDoneTask = actualCompetitors.stream()
-            .filter(c -> c.getSolutions().stream().anyMatch(s -> s.getTaskId().equals(taskNumber)))
+            .filter(c -> c.getSolutions().stream()
+                .anyMatch(s -> s.isSolve(task)))
             .count();
 
-        StringBuilder taskStatistic = new StringBuilder()
-            .append("Выполнили: ")
-            .append(amountUsersDoneTask)
-            .append("/")
-            .append(actualCompetitors.size())
-            .append("<br>\n");
-
+        LocalDateTime lastCheckTask = task.getLastCheckSolutions();
+        String taskStatistic = lastCheckTask != null ? "Выполнили: "
+            + amountUsersDoneTask
+            + "/"
+            + actualCompetitors.size()
+            + " (обновлено:" + DateTimeFormatter.ofPattern("dd.MM HH:mm")
+            .format(LocalDateTime.now()) + ") <br>\n" : "";
 
         //list of competitors
         actualCompetitors.sort(Comparator.comparing(Competitor::getName));
         StringBuilder listOfCompetitors = new StringBuilder();
         for (int i = 0; i < actualCompetitors.size(); i++) {
+            final Competitor competitor = actualCompetitors.get(i);
             listOfCompetitors.append(i + 1)
                 .append(". ")
-                .append(actualCompetitors.get(i)
-                    .getSolutions()
-                    .stream()
-                    .anyMatch(s -> s.getTaskId().equals(taskNumber)) ? "✅" : "❔")
+                .append(competitor.hasSolution(task) ? "✅" : "❔")
                 .append(" @")
                 .append(actualCompetitors.get(i).getName())
+                .append(format(competitor.durationFromResolveSolution(task)))
                 .append("<br>\n");
         }
-        return dashboard
-            .append(taskStatistic)
-            .append(listOfCompetitors).toString();
+        return String.join("<br>\n<br>\n", bold(title + titleDeadline),
+            taskInfo, (taskStatistic + listOfCompetitors));
     }
 
-
-    private Map<Competitor, CompetitorCompletedChallenges> getCompetitorsInfo(
-        Collection<Competitor> competitors) {
-        Map<Competitor, CompetitorCompletedChallenges> completedChallengesMap = new HashMap<>();
-
-        for (var competitor : competitors) {
-            completedChallengesMap.put(competitor, getCompetitorInfo(competitor));
-        }
-
-        return completedChallengesMap;
+    private String bold(String s) {
+        return "**" + s + "**";
     }
 
-    private CompetitorCompletedChallenges getCompetitorInfo(Competitor competitor) {
-        RestTemplate restTemplate = new RestTemplate();
-        var completedChallenges = restTemplate
-            .getForObject(userApiInfoUrl(competitor), CompetitorCompletedChallenges.class);
-
-        for (int pageNumber = 1; pageNumber < completedChallenges.getTotalPages(); pageNumber++) {
-            var nextPage = restTemplate.getForObject(userApiInfoUrlWithPage(competitor, pageNumber),
-                CompetitorCompletedChallenges.class);
-            completedChallenges.addToData(nextPage);
-        }
-        return completedChallenges;
+    private List<Competitor> getActiveCompetitors() {
+        return competitorRepository.findAllByIsActiveTrue();
     }
 
-    private String userApiInfoUrl(Competitor competitor) {
-        return userApi + competitor.getCodewarsName() + completedApi;
-    }
-
-    private String userApiInfoUrlWithPage(Competitor competitor, int pageNumber) {
-        return userApi + competitor.getCodewarsName() + completedApi + "?page=" + pageNumber;
-    }
-
-    @Transactional
-    public void addTestData() {
-
-        Competitor competitor = new Competitor();
-        competitor.setTelegramId("1111");
-        competitor.setCodewarsName("sendelufa");
-        competitor.setName("sendel");
-
-        competitorRepository.save(competitor);
-
-        Competitor competitor2 = new Competitor();
-        competitor2.setTelegramId("2222");
-        competitor2.setCodewarsName("KofeNata");
-        competitor2.setName("Natalia");
-
-        competitorRepository.save(competitor2);
-
-        Solution solution = new Solution();
-        solution.setSolutionSubmitTime(LocalDateTime.now());
-        solution.setTaskId("5583090cbe83f4fd8c000051");
-        solution.setCompetitor(competitor);
-        solution.setLastCheckSolution(LocalDateTime.now());
-        solution.setDone(true);
-
-        solutionRepository.save(solution);
+    private String format(Duration d) {
+        return d == Duration.ZERO
+            ? ""
+            : String.format("уже %dч %dмин назад", d.toHoursPart(), d.toMinutesPart());
     }
 }
+

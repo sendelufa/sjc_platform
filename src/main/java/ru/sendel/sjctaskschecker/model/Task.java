@@ -18,6 +18,8 @@ public class Task {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private int numberInChallenge;
+
     private boolean isActive;
 
     @NotNull
@@ -34,5 +36,7 @@ public class Task {
 
     @NotNull
     private LocalDateTime endActiveTime;
+
+    private LocalDateTime lastCheckSolutions;
 
 }

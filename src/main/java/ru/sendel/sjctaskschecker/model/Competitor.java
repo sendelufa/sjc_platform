@@ -1,5 +1,9 @@
 package ru.sendel.sjctaskschecker.model;
 
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.Entity;
@@ -40,4 +44,16 @@ public class Competitor {
 
     @OneToMany(mappedBy = "competitor", fetch = FetchType.LAZY)
     private List<Solution> solutions = new ArrayList<>();
+
+    public boolean hasSolution(Task task) {
+      return   solutions.stream()
+            .anyMatch(s -> s.isSolve(task));
+    }
+
+    public Duration durationFromResolveSolution(Task task) {
+        return solutions.stream()
+            .filter(s-> s.isSolve(task))
+            .map(Solution::durationFromSolved)
+            .findFirst().orElse(Duration.ZERO);
+    }
 }

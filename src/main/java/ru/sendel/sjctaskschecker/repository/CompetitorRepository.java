@@ -19,7 +19,7 @@ public interface CompetitorRepository extends JpaRepository<Competitor, Long> {
         nativeQuery = true)
     List<Competitor> findAllWithoutSolution(@Param("taskId") String taskId);
 
-    List<Competitor> findAllByIsActive(boolean active);
+    List<Competitor> findAllByIsActiveTrue();
 
 
 }

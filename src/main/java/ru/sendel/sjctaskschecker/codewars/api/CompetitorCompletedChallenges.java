@@ -1,5 +1,6 @@
-package ru.sendel.sjctaskschecker.codewars;
+package ru.sendel.sjctaskschecker.codewars.api;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import lombok.Data;
@@ -34,5 +35,11 @@ public class CompetitorCompletedChallenges {
         private String slug;
         private String completedAt;
         private List<String> completedLanguages;
+    }
+
+    public static CompetitorCompletedChallenges safeFakeObject(){
+        var completed = new CompetitorCompletedChallenges();
+        completed.data = Collections.emptyList();
+        return completed;
     }
 }

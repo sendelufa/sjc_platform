@@ -1,19 +1,17 @@
 package ru.sendel.sjctaskschecker.model;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
-import javax.validation.constraints.FutureOrPresent;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
-import ru.sendel.sjctaskschecker.codewars.CompetitorCompletedChallenges.Challenge;
+import ru.sendel.sjctaskschecker.codewars.api.CompetitorCompletedChallenges.Challenge;
 
 @Entity(name = "solutions")
 @Data
@@ -48,5 +46,13 @@ public class Solution {
             challenge.getCompletedAt().substring(0, challenge.getCompletedAt().length() - 1)));
         solution.setTaskId(challenge.getId());
         return solution;
+    }
+
+    public boolean isSolve(Task task) {
+        return taskId.equals(task.getNumber());
+    }
+
+    public Duration durationFromSolved() {
+        return Duration.between(solutionSubmitTime, LocalDateTime.now());
     }
 }
