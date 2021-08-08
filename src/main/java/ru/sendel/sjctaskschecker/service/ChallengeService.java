@@ -78,7 +78,7 @@ public class ChallengeService {
             ", Задание №" + task.getNumberInChallenge() + "<br>\n";
 
         String titleDeadline = "⏰ Дедлайн - " +
-            DateTimeFormatter.ofPattern("d MMMM HH:mm").format(task.getEndActiveTime());
+            DateTimeFormatter.ofPattern("d MMMM HH:mm").format(task.getEndActiveTime()) + " МСК";
 
         StringBuilder taskInfo = new StringBuilder();
         taskInfo.append(
@@ -97,14 +97,17 @@ public class ChallengeService {
             + "/"
             + actualCompetitors.size()
             + " (обновлено:" + DateTimeFormatter.ofPattern("dd.MM HH:mm")
-            .format(LocalDateTime.now()) + ") <br>\n" : "";
+            .format(LocalDateTime.now()) + " МСК) <br>\n" : "";
 
         //list of competitors
-        actualCompetitors.sort(Comparator.comparing(Competitor::getName));
+        actualCompetitors.sort(Comparator.comparing(c -> ((Competitor) c).hasSolution(task))
+            .reversed()
+            .thenComparing(c -> ((Competitor) c).getName()));
+
         StringBuilder listOfCompetitors = new StringBuilder();
         for (int i = 0; i < actualCompetitors.size(); i++) {
             final Competitor competitor = actualCompetitors.get(i);
-            listOfCompetitors.append(i + 1)
+            listOfCompetitors.append(String.format("%02d", i + 1))
                 .append(". ")
                 .append(competitor.hasSolution(task) ? "✅" : "❔")
                 .append(" @")
@@ -127,7 +130,7 @@ public class ChallengeService {
     private String format(Duration d) {
         return d == Duration.ZERO
             ? ""
-            : String.format("уже %dч %dмин назад", d.toHoursPart(), d.toMinutesPart());
+            : String.format(" - %dч %dмин назад", d.toHours(), d.toMinutesPart());
     }
 }
 
