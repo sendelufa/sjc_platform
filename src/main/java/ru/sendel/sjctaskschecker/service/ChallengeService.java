@@ -5,11 +5,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -112,7 +109,8 @@ public class ChallengeService {
                 .append(competitor.hasSolution(task) ? "✅" : "❔")
                 .append(" @")
                 .append(actualCompetitors.get(i).getName())
-                .append(format(competitor.durationFromResolveSolution(task)))
+                .append(
+                    formatPassedTimeFromTaskSolution(competitor.durationFromResolveSolution(task)))
                 .append("<br>\n");
         }
         return String.join("<br>\n<br>\n", bold(title + titleDeadline),
@@ -127,9 +125,12 @@ public class ChallengeService {
         return competitorRepository.findAllByIsActiveTrue();
     }
 
-    private String format(Duration d) {
-        return d == Duration.ZERO
-            ? ""
+    private String formatPassedTimeFromTaskSolution(Duration d) {
+        if (d == Duration.ZERO) {
+            return "";
+        }
+
+        return d.toHours() > 24 ? ", давно решено"
             : String.format(" - %dч %dмин назад", d.toHours(), d.toMinutesPart());
     }
 }

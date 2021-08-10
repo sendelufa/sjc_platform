@@ -19,7 +19,6 @@ public class SjcTasksCheckerApplication {
     @PostConstruct
     public void init() {
         TimeZone.setDefault(TimeZone.getTimeZone(ZoneId.of("Europe/Moscow")));
-//        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         Locale.setDefault(new Locale("ru"));
     }
 
