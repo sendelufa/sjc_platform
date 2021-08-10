@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.ArrayList;
 import java.util.List;
+import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
@@ -42,7 +43,7 @@ public class Competitor {
     @NotEmpty
     private String codewarsName;
 
-    @OneToMany(mappedBy = "competitor", fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "competitor", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     private List<Solution> solutions = new ArrayList<>();
 
     public boolean hasSolution(Task task) {
