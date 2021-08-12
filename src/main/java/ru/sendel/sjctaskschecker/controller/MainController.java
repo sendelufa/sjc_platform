@@ -11,6 +11,7 @@ import ru.sendel.sjctaskschecker.api.v1.response.StageResult;
 import ru.sendel.sjctaskschecker.model.Task;
 import ru.sendel.sjctaskschecker.repository.CompetitorRepository;
 import ru.sendel.sjctaskschecker.service.ChallengeService;
+import ru.sendel.sjctaskschecker.service.SolutionService;
 import ru.sendel.sjctaskschecker.service.TaskService;
 
 @RestController
@@ -21,10 +22,11 @@ public class MainController {
     private final CompetitorRepository competitorRepository;
     private final ChallengeService challengeService;
     private final TaskService taskService;
+    private final SolutionService solutionService;
 
     @GetMapping("result/{taskId}")
     public Collection<?> stageResult(@PathVariable String taskId) {
-        return challengeService.refreshResultOfTask(taskId);
+        return solutionService.refreshResultOfTask(taskId);
     }
 
     @GetMapping("/td")
