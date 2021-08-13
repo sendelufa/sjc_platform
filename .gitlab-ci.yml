@@ -2,7 +2,7 @@ stages:
   - test
   - build jar
   - build and push docker image
- # - deploy
+  - deploy
 test_job:
   image: maven:3.6.2-jdk-11-slim
   stage: test
@@ -37,6 +37,7 @@ docker build:
   only:
     - master
 deploy:
+  when: manual
   image: ubuntu:latest
   stage: deploy
   before_script:
