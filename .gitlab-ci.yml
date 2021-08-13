@@ -32,7 +32,7 @@ docker build:
   stage: build and push docker image
   script:
     - docker build --build-arg SPRING_ACTIVE_PROFILE=prod -t $DOCKER_REPO:latest .
-    - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD docker.io
+    - docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
     - docker push $DOCKER_REPO:latest
   only:
     - master
