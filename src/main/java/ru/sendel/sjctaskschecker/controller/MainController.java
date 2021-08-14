@@ -27,11 +27,6 @@ public class MainController {
         return solutionService.refreshResultOfTask(taskId);
     }
 
-    @GetMapping("/td")
-    public Task addTestData(){
-        return taskService.getActualTask();
-    }
-
     @GetMapping("/dashboard")
     public String dashboard(){
         return challengeService.dashboard();
