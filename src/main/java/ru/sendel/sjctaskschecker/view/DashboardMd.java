@@ -16,12 +16,15 @@ import ru.sendel.sjctaskschecker.model.Solution;
 import ru.sendel.sjctaskschecker.model.Task;
 import ru.sendel.sjctaskschecker.service.CompetitorService;
 import ru.sendel.sjctaskschecker.service.TaskService;
+
 @Component
 @RequiredArgsConstructor
 @Qualifier("DashboardMd")
-public class DashboardMd implements Dashboard{
+public class DashboardMd implements Dashboard {
+
     private final TaskService taskService;
     private final CompetitorService competitorService;
+
     @Override
     public String dashboard(Task task) {
         final List<Competitor> actualCompetitors = competitorService.getActiveCompetitors();
@@ -54,8 +57,8 @@ public class DashboardMd implements Dashboard{
         //list of competitors
         actualCompetitors
             .sort(Comparator.comparing(c -> ((Competitor) c).hasSolution(task))
-            .reversed()
-            .thenComparing(c -> ((Competitor) c).getName().toLowerCase()));
+                .reversed()
+                .thenComparing(c -> ((Competitor) c).getName().toLowerCase()));
 
         StringBuilder listOfCompetitors = new StringBuilder();
         for (int i = 0; i < actualCompetitors.size(); i++) {
@@ -69,7 +72,7 @@ public class DashboardMd implements Dashboard{
                     formatPassedTimeFromTaskSolution(competitor.durationFromResolveSolution(task)))
                 .append("\n");
         }
-        return String.join("\n\n", bold(title),bold(titleDeadline),
+        return String.join("\n\n", bold(title), bold(titleDeadline),
             taskInfo, (taskStatistic + "\n" + listOfCompetitors));
     }
 
@@ -94,7 +97,12 @@ public class DashboardMd implements Dashboard{
             return "";
         }
 
-        return d.toHours() > 24 ? ", давно решено"
-            : String.format(" - %dч %dмин назад", d.toHours(), d.toMinutesPart());
+        if (d.toHours() >= 24) {
+            return ", давно решено";
+        } else if (d.toHours() < 1) {
+            return String.format(" - %dмин назад", d.toMinutesPart());
+        } else {
+            return String.format(" - %dч %dмин назад", d.toHours(), d.toMinutesPart());
+        }
     }
 }
