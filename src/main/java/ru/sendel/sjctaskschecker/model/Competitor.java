@@ -1,9 +1,6 @@
 package ru.sendel.sjctaskschecker.model;
 
 import java.time.Duration;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.Period;
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.CascadeType;
@@ -18,7 +15,6 @@ import javax.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.springframework.beans.factory.annotation.Value;
 
 @Entity(name = "competitors")
 @Data

@@ -2,6 +2,7 @@ package ru.sendel.sjctaskschecker.telegram;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,9 +48,10 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
 
         String messageText = update.getMessage().getText();
-        log.info("new msg:{}", messageText);
+        log.info("new msg:{} from {} {}", messageText, update.getMessage().getChatId(),
+            update.getMessage().getChat().getUserName());
 
-        SendMessage sendMessage ;
+        SendMessage sendMessage;
 
         if (messageText.equals("/board")) {
             log.info("telemsg: board with actual task");
@@ -57,19 +59,28 @@ public class TelegramBot extends TelegramLongPollingBot {
                 .setText(dashboard.dashboard().replaceAll("_", "\\\\_").trim())
                 .setChatId(update.getMessage().getChatId())
                 .disableWebPagePreview();
-        } else if (messageText.matches("/board\\s+.+")){
+        } else if (messageText.matches("/board\\s+.+")) {
             log.info("telemsg: board with specific id");
 
             String taskId = messageText.split("\\s+")[1];
-            solutionService.refreshResultOfTask(taskId);
-            sendMessage = new SendMessage().enableMarkdown(true)
-                .setText(dashboard.dashboard(taskService.getTaskByNumber(taskId)).replaceAll("_", "\\\\_").trim())
-                .setChatId(update.getMessage().getChatId())
-                .disableWebPagePreview();
-        } else if(messageText.equals("/tasks")) {
-           sendMessage = new SendMessage().setChatId(update.getMessage().getChatId())
-            .setText(taskService.getAllTasks().toString());
-        }else{
+            try {
+                solutionService.refreshResultOfTask(taskId);
+                sendMessage = new SendMessage().enableMarkdown(true)
+                    .setText(dashboard.dashboard(taskService.getTaskByNumber(taskId))
+                        .replaceAll("_", "\\\\_").trim())
+                    .setChatId(update.getMessage().getChatId())
+                    .disableWebPagePreview();
+            } catch (NoSuchElementException e) {
+                log.error(e);
+                sendMessage = new SendMessage().setText("Задание не найдено")
+                    .setChatId(update.getMessage().getChatId());
+
+            }
+        } else if (messageText.equals("/tasks")) {
+            sendMessage = new SendMessage().setChatId(update.getMessage().getChatId())
+                .setText(taskService.getAllTasks().toString().replaceAll("[,\\]\\[]", ""))
+                .enableMarkdown(true).disableWebPagePreview();
+        } else {
             return;
         }
 
@@ -81,17 +92,15 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     public void sendMessageToChannel(String channelName, String text) {
-        separate(text, 2000).forEach(m -> {
-            log.info("\n===\n{}\n===", m.trim());
-            m = m.replaceAll("_", "\\\\_");
-            SendMessage sendMessage = new SendMessage().setChatId(channelName).setText(m.trim());
-            sendMessage = sendMessage.enableMarkdown(true).disableWebPagePreview();
-            try {
-                System.out.println(execute(sendMessage).getMessageId());
-            } catch (TelegramApiException e) {
-                e.printStackTrace();
-            }
-        });
+        text = text.replaceAll("_", "\\\\_");
+        SendMessage sendMessage = new SendMessage().setChatId(channelName).setText(text.trim());
+        sendMessage = sendMessage.enableMarkdown(true).disableWebPagePreview();
+        try {
+            execute(sendMessage);
+            log.info("Message with board to channel {} sent", channelName);
+        } catch (TelegramApiException e) {
+            log.error("error while send msg to tg_channel " + channelName, e);
+        }
     }
 
     private static List<String> separate(String text, int maxLengthMessage) {
@@ -104,7 +113,6 @@ public class TelegramBot extends TelegramLongPollingBot {
                 String line;
                 if (indexOfCrlf >= 0) {
                     line = t.substring(0, indexOfCrlf + 1);
-                    System.out.println(" ==>" + line);
                     t = t.substring(indexOfCrlf + 1);
                 } else {
                     line = t;

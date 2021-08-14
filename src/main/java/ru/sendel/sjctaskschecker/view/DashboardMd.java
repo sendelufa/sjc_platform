@@ -7,7 +7,6 @@ import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.context.properties.bind.Name;
 import org.springframework.stereotype.Component;
 import ru.sendel.sjctaskschecker.model.Competitor;
 import ru.sendel.sjctaskschecker.model.Task;

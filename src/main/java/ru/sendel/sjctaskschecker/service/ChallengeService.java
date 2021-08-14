@@ -2,6 +2,7 @@ package ru.sendel.sjctaskschecker.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import ru.sendel.sjctaskschecker.telegram.TelegramBot;
@@ -16,8 +17,10 @@ public class ChallengeService {
     private final TelegramBot telegramBot;
 
     private final Dashboard dashboard;
+    @Value("${bot.channel}")
+    private String telegramChannelNameToPublish;
 
-    private final long milliSecondsBetweenUpdateSolution = 5 * 60 * 1000;
+    private final long milliSecondsBetweenUpdateSolution = 20 * 60 * 1000;
 
     public ChallengeService(
         TaskService taskService,
@@ -34,7 +37,7 @@ public class ChallengeService {
     @Scheduled(fixedRate = milliSecondsBetweenUpdateSolution)
     public void scheduleRefresh() {
         solutionService.refreshResultOfTask(taskService.getActualTask());
-        telegramBot.sendMessageToChannel("@cjs_test", dashboard.dashboard());
+        telegramBot.sendMessageToChannel(telegramChannelNameToPublish, dashboard.dashboard());
     }
 
     public String dashboard() {
