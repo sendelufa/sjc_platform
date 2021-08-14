@@ -6,6 +6,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -51,9 +52,10 @@ public class DashboardMd implements Dashboard{
             .format(LocalDateTime.now()) + " МСК)" : "";
 
         //list of competitors
-        actualCompetitors.sort(Comparator.comparing(c -> ((Competitor) c).hasSolution(task))
+        actualCompetitors
+            .sort(Comparator.comparing(c -> ((Competitor) c).hasSolution(task))
             .reversed()
-            .thenComparing(c -> ((Competitor) c).getName()));
+            .thenComparing(c -> ((Competitor) c).getName().toLowerCase()));
 
         StringBuilder listOfCompetitors = new StringBuilder();
         for (int i = 0; i < actualCompetitors.size(); i++) {
