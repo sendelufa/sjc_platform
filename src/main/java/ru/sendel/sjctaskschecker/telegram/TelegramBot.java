@@ -49,7 +49,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
-        if (!update.hasMessage()) {
+        if (!update.hasMessage() || update.getMessage().getText() == null) {
             return;
         }
 
@@ -115,8 +115,14 @@ public class TelegramBot extends TelegramLongPollingBot {
         Integer messageId = taskToMessageMap.get(taskId);
         if (messageId == null) {
             Message message = sendMessageToChannel(channelName, text);
-            taskToMessageMap.put(taskId, message.getMessageId());
-            log.info("new board message in channel, message id:{}", message.getMessageId());
+
+            if (message.getMessageId() != null) {
+                taskToMessageMap.put(taskId, message.getMessageId());
+                log.info("new board message in channel, message id:{}", message.getMessageId());
+            }
+
+            log.info("Map of [task -> msg_id] = {}", taskToMessageMap);
+
         } else {
             updateMessageInChannel(channelName, text, messageId);
             log.info("update board message in channel, message id:{}", messageId);
@@ -135,7 +141,6 @@ public class TelegramBot extends TelegramLongPollingBot {
             log.error("error while update msg_id=" + messageId + " to tg_channel " + channelName,
                 e);
         }
-        throw new RuntimeException("strange error while update message");
     }
 
     private static List<String> separate(String text, int maxLengthMessage) {

@@ -3,12 +3,14 @@ package ru.sendel.sjctaskschecker.view;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import ru.sendel.sjctaskschecker.model.Competitor;
+import ru.sendel.sjctaskschecker.model.Solution;
 import ru.sendel.sjctaskschecker.model.Task;
 import ru.sendel.sjctaskschecker.service.CompetitorService;
 import ru.sendel.sjctaskschecker.service.TaskService;
@@ -71,6 +73,11 @@ public class DashboardHtml implements Dashboard {
         return String.join("<br>\n<br>\n", bold(title + titleDeadline),
             taskInfo, (taskStatistic + listOfCompetitors));
 
+    }
+
+    @Override
+    public String formatNewSolutions(Collection<Solution> newSolutions) {
+        return newSolutions.toString();
     }
 
     @Override
