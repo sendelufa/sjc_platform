@@ -3,6 +3,18 @@ stages:
   - build jar
   - build and push docker image
   - deploy
+
+variables:
+  MAVEN_OPTS: "-Djava.awt.headless=true -Dmaven.repo.local=./.m2/repository"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version"
+
+cache:
+  paths:
+    - ./.m2/repository
+  # keep cache across branch
+  key: "$CI_BUILD_REF_NAME"
+
+
 test_job:
   image: maven:3.6.2-jdk-11-slim
   stage: test
