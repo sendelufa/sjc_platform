@@ -72,7 +72,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                 sendMessage = new SendMessage()
                     .setChatId(update.getMessage().getChatId())
                     .setText("Актуального задания нет, можете использовать `/tasks`"
-                        + " для получения списка команд и `/board\\_номерЗадания` "
+                        + " для получения списка команд и `/board_номерЗадания` "
                         + "- для получения результата")
                     .enableMarkdown(true);
             }
