@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -71,14 +72,14 @@ public class TelegramBot extends TelegramLongPollingBot {
                 sendMessage = new SendMessage()
                     .setChatId(update.getMessage().getChatId())
                     .setText("Актуального задания нет, можете использовать `/tasks`"
-                        + " для получения списка команд и `/board номерЗадания` "
+                        + " для получения списка команд и `/board\\_номерЗадания` "
                         + "- для получения результата")
                     .enableMarkdown(true);
             }
-        } else if (messageText.matches("/board\\s+.+")) {
-            log.info("telemsg: board with specific id");
+        } else if (messageText.matches("/board_.+")) {
+            log.info("telemsg: board with specific id({})", messageText);
 
-            String taskId = messageText.split("\\s+")[1];
+            String taskId = messageText.split("_", 2)[1];
             try {
                 solutionService.refreshResultOfTask(taskId);
                 sendMessage = new SendMessage().enableMarkdown(true)
@@ -94,8 +95,11 @@ public class TelegramBot extends TelegramLongPollingBot {
             }
         } else if (messageText.equals("/tasks")) {
             sendMessage = new SendMessage().setChatId(update.getMessage().getChatId())
-                .setText(taskService.getAllTasks().toString().replaceAll("[,\\]\\[]", ""))
-                .enableMarkdown(true).disableWebPagePreview();
+                .setText(taskService.getAllTasks().stream()
+                    .map(task -> String.format("%s /board\\_%s", task, task.getNumber()))
+                    .collect(Collectors.joining("\n")))
+                .enableMarkdown(true)
+                .disableWebPagePreview();
         } else {
             return;
         }
