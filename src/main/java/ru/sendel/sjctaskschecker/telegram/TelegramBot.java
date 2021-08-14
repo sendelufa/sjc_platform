@@ -61,10 +61,20 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         if (messageText.equals("/board")) {
             log.info("telemsg: board with actual task");
-            sendMessage = new SendMessage().enableMarkdown(true)
-                .setText(dashboard.dashboard().replaceAll("_", "\\\\_").trim())
-                .setChatId(update.getMessage().getChatId())
-                .disableWebPagePreview();
+            try {
+                sendMessage = new SendMessage().enableMarkdown(true)
+                    .setText(dashboard.dashboard().replaceAll("_", "\\\\_").trim())
+                    .setChatId(update.getMessage().getChatId())
+                    .disableWebPagePreview();
+            } catch (NoSuchElementException e) {
+                log.error("Actual task not found");
+                sendMessage = new SendMessage()
+                    .setChatId(update.getMessage().getChatId())
+                    .setText("Актуального задания нет, можете использовать `/tasks`"
+                        + " для получения списка команд и `/board номерЗадания` "
+                        + "- для получения результата")
+                    .enableMarkdown(true);
+            }
         } else if (messageText.matches("/board\\s+.+")) {
             log.info("telemsg: board with specific id");
 
