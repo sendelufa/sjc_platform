@@ -1,11 +1,12 @@
 package ru.sendel.sjctaskschecker.telegram;
 
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +17,8 @@ import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageTe
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import ru.sendel.sjctaskschecker.model.Solution;
+import ru.sendel.sjctaskschecker.model.Task;
 import ru.sendel.sjctaskschecker.service.SolutionService;
 import ru.sendel.sjctaskschecker.service.TaskService;
 import ru.sendel.sjctaskschecker.view.Dashboard;
@@ -30,85 +33,96 @@ public class TelegramBot extends TelegramLongPollingBot {
     @Value("${bot.token}")
     private String token;
 
-    private final TelegramMessageService messageService;
     private final TaskService taskService;
     private final SolutionService solutionService;
+
+    private final List<Long> authorizeChatId = List.of(302722922L, 1039061325L, 349347653L, 1181136L);
 
     private final Dashboard dashboard;
 
     Map<String, Integer> taskToMessageMap = new ConcurrentHashMap<>();
 
-    public TelegramBot(TelegramMessageService messageService,
-        TaskService taskService,
+    public TelegramBot(TaskService taskService,
         SolutionService solutionService,
         @Qualifier("DashboardMd") Dashboard dashboard) {
-        this.messageService = messageService;
         this.taskService = taskService;
         this.solutionService = solutionService;
         this.dashboard = dashboard;
     }
 
+    @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
         if (!update.hasMessage() || update.getMessage().getText() == null) {
             return;
         }
 
+        Long chatIdUpdate = update.getMessage().getChatId();
+        if (!authorizeChatId.contains(chatIdUpdate)){
+            return;
+        }
+
         String messageText = update.getMessage().getText();
-        log.info("new msg:{} from {} {}", messageText, update.getMessage().getChatId(),
+        log.info("new msg:{} from {} {}", messageText, chatIdUpdate,
             update.getMessage().getChat().getUserName());
 
         SendMessage sendMessage;
 
         if (messageText.equals("/board")) {
-            log.info("telemsg: board with actual task");
+            log.info("telegram_msg: board with actual task");
             try {
                 sendMessage = new SendMessage().enableMarkdown(true)
                     .setText(dashboard.dashboard().replaceAll("_", "\\\\_").trim())
-                    .setChatId(update.getMessage().getChatId())
+                    .setChatId(chatIdUpdate)
                     .disableWebPagePreview();
+                execute(sendMessage);
             } catch (NoSuchElementException e) {
                 log.error("Actual task not found");
                 sendMessage = new SendMessage()
-                    .setChatId(update.getMessage().getChatId())
+                    .setChatId(chatIdUpdate)
                     .setText("Актуального задания нет, можете использовать `/tasks`"
                         + " для получения списка команд и `/board_номерЗадания` "
                         + "- для получения результата")
                     .enableMarkdown(true);
+                execute(sendMessage);
             }
         } else if (messageText.matches("/board_.+")) {
-            log.info("telemsg: board with specific id({})", messageText);
+            log.info("telegram_msg: board with specific id({})", messageText);
 
             String taskId = messageText.split("_", 2)[1];
             try {
-                solutionService.refreshResultOfTask(taskId);
+                Collection<Solution> newSolutions = solutionService.refreshResultOfTask(taskId);
                 sendMessage = new SendMessage().enableMarkdown(true)
                     .setText(dashboard.dashboard(taskService.getTaskByNumber(taskId))
                         .replaceAll("_", "\\\\_").trim())
-                    .setChatId(update.getMessage().getChatId())
+                    .setChatId(chatIdUpdate)
                     .disableWebPagePreview();
+                execute(sendMessage);
+                if (!newSolutions.isEmpty()) {
+                    execute(new SendMessage().enableMarkdown(true)
+                        .setText(dashboard.formatNewSolutions(newSolutions)
+                            .replaceAll("_", "\\\\_").trim())
+                        .setChatId(chatIdUpdate)
+                        .disableWebPagePreview());
+                }
+
             } catch (NoSuchElementException e) {
                 log.error(e);
                 sendMessage = new SendMessage().setText("Задание не найдено")
-                    .setChatId(update.getMessage().getChatId());
+                    .setChatId(chatIdUpdate);
+                execute(sendMessage);
 
             }
         } else if (messageText.equals("/tasks")) {
-            sendMessage = new SendMessage().setChatId(update.getMessage().getChatId())
+            sendMessage = new SendMessage().setChatId(chatIdUpdate)
                 .setText(taskService.getAllTasks().stream()
-                    .map(task -> String.format("%s /board\\_%s", task, task.getNumber()))
-                    .collect(Collectors.joining("\n")))
+                    .map(Task::toString)
+                    .collect(Collectors.joining("\n\n")))
                 .enableMarkdown(true)
                 .disableWebPagePreview();
-        } else {
-            return;
+            execute(sendMessage);
         }
 
-        try {
-            execute(sendMessage);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
     }
 
     public Message sendMessageToChannel(String channelName, String text) {
@@ -156,30 +170,6 @@ public class TelegramBot extends TelegramLongPollingBot {
                 e);
         }
     }
-
-    private static List<String> separate(String text, int maxLengthMessage) {
-        List<String> messagesNormal = new ArrayList<>();
-        String t = text;
-        while (t.length() > 0) {
-            StringBuilder newMessage = new StringBuilder();
-            while (newMessage.length() < maxLengthMessage && !t.isBlank()) {
-                int indexOfCrlf = t.indexOf("\n");
-                String line;
-                if (indexOfCrlf >= 0) {
-                    line = t.substring(0, indexOfCrlf + 1);
-                    t = t.substring(indexOfCrlf + 1);
-                } else {
-                    line = t;
-                    t = "";
-                }
-                newMessage.append(line);
-            }
-            messagesNormal.add(newMessage.toString());
-
-        }
-        return messagesNormal;
-    }
-
 
     @Override
     public String getBotUsername() {

@@ -47,6 +47,6 @@ public class Task {
             ", difficult='" + difficult + '\'' +
             ", startActiveTime=" + startActiveTime +
             ", endActiveTime=" + endActiveTime +
-            "}\n\n";
+            "}";
     }
 }

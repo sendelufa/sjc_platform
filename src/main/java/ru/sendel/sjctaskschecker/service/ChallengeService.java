@@ -23,7 +23,7 @@ public class ChallengeService {
     @Value("${bot.channel}")
     private String telegramChannelNameToPublish;
 
-    private final long milliSecondsBetweenUpdateSolution = 30 * 60 * 1000;
+    private final String cronScheduleUpdateSolution = "0 0 7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22 ? * * *";
 
     public ChallengeService(
         TaskService taskService,
@@ -37,7 +37,7 @@ public class ChallengeService {
         this.dashboard = dashboard;
     }
 
-    @Scheduled(fixedRate = milliSecondsBetweenUpdateSolution)
+    @Scheduled(cron = "${cron.updateSolutions}")
     public void scheduleRefresh() {
         Task actualTask = taskService.getActualTask();
         Collection<Solution> newSolutions = solutionService.refreshResultOfTask(actualTask);
