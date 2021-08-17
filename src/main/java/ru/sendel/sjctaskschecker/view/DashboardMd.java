@@ -79,6 +79,7 @@ public class DashboardMd implements Dashboard {
     @Override
     public String formatNewSolutions(Collection<Solution> newSolutions) {
         return "\uD83D\uDC4D *Новые решения прислали:*\n" + newSolutions.stream()
+            .filter(solution -> solution.getCompetitor().isActive())
             .map(solution -> solution.getCompetitor().getName())
             .collect(Collectors.joining(", "));
     }
