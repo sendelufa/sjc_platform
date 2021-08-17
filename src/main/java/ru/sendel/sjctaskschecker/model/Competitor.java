@@ -47,10 +47,10 @@ public class Competitor {
             .anyMatch(s -> s.isSolve(task));
     }
 
-    public Duration durationFromResolveSolution(Task task) {
+    public Duration durationFromStartToResolveSolution(Task task) {
         return solutions.stream()
             .filter(s-> s.isSolve(task))
-            .map(Solution::durationFromSolved)
+            .map(s-> Duration.between(task.getStartActiveTime(), s.getSolutionSubmitTime()))
             .findFirst().orElse(Duration.ZERO);
     }
 }

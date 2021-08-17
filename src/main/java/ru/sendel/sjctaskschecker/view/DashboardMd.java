@@ -6,7 +6,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -60,6 +59,14 @@ public class DashboardMd implements Dashboard {
                 .reversed()
                 .thenComparing(c -> ((Competitor) c).getName().toLowerCase()));
 
+        //fastest solutions
+        var fastestCompetitors = actualCompetitors.stream()
+            .sorted(Comparator.comparing((Competitor c) ->
+                c.durationFromStartToResolveSolution(task)))
+            .filter(competitor -> competitor.durationFromStartToResolveSolution(task).compareTo(Duration.ZERO) > 0)
+            .limit(3)
+            .collect(Collectors.toUnmodifiableList());
+
         StringBuilder listOfCompetitors = new StringBuilder();
         for (int i = 0; i < actualCompetitors.size(); i++) {
             final Competitor competitor = actualCompetitors.get(i);
@@ -68,10 +75,13 @@ public class DashboardMd implements Dashboard {
                 .append(competitor.hasSolution(task) ? "✅" : "❔")
                 .append(" ")
                 .append(actualCompetitors.get(i).getName())
+                .append(fastestCompetitors.contains(competitor) ? " 🤟" : "")
                 .append(
-                    formatPassedTimeFromTaskSolution(competitor.durationFromResolveSolution(task)))
+                    formatPassedTimeFromTaskSolution(
+                        competitor.durationFromStartToResolveSolution(task)))
                 .append("\n");
         }
+
         return String.join("\n\n", bold(title), bold(titleDeadline),
             taskInfo, (taskStatistic + "\n" + listOfCompetitors));
     }
@@ -98,12 +108,12 @@ public class DashboardMd implements Dashboard {
             return "";
         }
 
-        if (d.toHours() >= 24) {
+        if (d.toHours() < 0) {
             return ", давно решено";
         } else if (d.toHours() < 1) {
-            return String.format(" - %dмин назад", d.toMinutesPart());
+            return String.format(" - %dмин ", d.toMinutesPart());
         } else {
-            return String.format(" - %dч %dмин назад", d.toHours(), d.toMinutesPart());
+            return String.format(" - %dч %dмин", d.toHours(), d.toMinutesPart());
         }
     }
 }

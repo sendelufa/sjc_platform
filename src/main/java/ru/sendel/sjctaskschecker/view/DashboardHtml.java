@@ -67,7 +67,7 @@ public class DashboardHtml implements Dashboard {
                 .append(" @")
                 .append(actualCompetitors.get(i).getName())
                 .append(
-                    formatPassedTimeFromTaskSolution(competitor.durationFromResolveSolution(task)))
+                    formatPassedTimeFromTaskSolution(competitor.durationFromStartToResolveSolution(task)))
                 .append("<br>\n");
         }
         return String.join("<br>\n<br>\n", bold(title + titleDeadline),
