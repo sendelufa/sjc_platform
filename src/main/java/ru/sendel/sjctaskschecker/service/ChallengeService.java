@@ -1,9 +1,13 @@
 package ru.sendel.sjctaskschecker.service;
 
+import java.util.Collection;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import ru.sendel.sjctaskschecker.model.Solution;
+import ru.sendel.sjctaskschecker.model.Task;
 import ru.sendel.sjctaskschecker.telegram.TelegramBot;
 import ru.sendel.sjctaskschecker.view.Dashboard;
 
@@ -16,8 +20,10 @@ public class ChallengeService {
     private final TelegramBot telegramBot;
 
     private final Dashboard dashboard;
+    @Value("${bot.channel}")
+    private String telegramChannelNameToPublish;
 
-    private final long milliSecondsBetweenUpdateSolution = 5 * 60 * 1000;
+    private final String cronScheduleUpdateSolution = "0 0 7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22 ? * * *";
 
     public ChallengeService(
         TaskService taskService,
@@ -31,10 +37,17 @@ public class ChallengeService {
         this.dashboard = dashboard;
     }
 
-    @Scheduled(fixedRate = milliSecondsBetweenUpdateSolution)
+    @Scheduled(cron = "${cron.updateSolutions}")
     public void scheduleRefresh() {
-        solutionService.refreshResultOfTask(taskService.getActualTask());
-        telegramBot.sendMessageToChannel("@cjs_test", dashboard.dashboard());
+        Task actualTask = taskService.getActualTask();
+        Collection<Solution> newSolutions = solutionService.refreshResultOfTask(actualTask);
+        telegramBot.sendMessageToChannel(telegramChannelNameToPublish, dashboard.dashboard(),
+            actualTask.getNumber());
+
+        if (!newSolutions.isEmpty()) {
+            telegramBot.sendMessageToChannel(telegramChannelNameToPublish,
+                dashboard.formatNewSolutions(newSolutions));
+        }
     }
 
     public String dashboard() {

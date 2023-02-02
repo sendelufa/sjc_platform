@@ -3,7 +3,6 @@ package ru.sendel.sjctaskschecker.service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,20 +16,13 @@ import ru.sendel.sjctaskschecker.repository.TaskRepository;
 public class TaskService {
 
     private final TaskRepository taskRepository;
-    private List<Task> tasks;
 
     public List<Task> getAllTasks() {
         return taskRepository.findAll();
     }
 
-    public List<String> getAllTasksId() {
-        return getAllTasks().stream()
-            .map(Task::getNumber)
-            .collect(Collectors.toList());
-    }
-
     public Task getTaskByNumber(String number) {
-        return taskRepository.findFirstByNumber(number).orElseThrow(() ->{
+        return taskRepository.findFirstByNumber(number).orElseThrow(() -> {
             log.error("(обновление данных о задачу) Задача {} не найдена!", number);
             throw new NoSuchElementException("Задача не найдена");
         });

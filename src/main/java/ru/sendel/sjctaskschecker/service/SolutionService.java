@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import javax.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.sendel.sjctaskschecker.codewars.api.CompetitorCompletedChallenges;
@@ -36,6 +37,7 @@ public class SolutionService {
         return refreshResultOfTask(taskService.getTaskByNumber(taskId));
     }
 
+    @Transactional
     public Collection<Solution> refreshResultOfTask(Task task) {
         var taskId = task.getNumber();
 

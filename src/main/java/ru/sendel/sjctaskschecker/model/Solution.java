@@ -43,7 +43,7 @@ public class Solution {
         // TODO: Date Parse pattern for 2017-04-06T16:32:09Z
         // remove Z
         solution.setSolutionSubmitTime(LocalDateTime.parse(
-            challenge.getCompletedAt().substring(0, challenge.getCompletedAt().length() - 1)));
+            challenge.getCompletedAt().substring(0, challenge.getCompletedAt().length() - 1)).plusHours(3));
         solution.setTaskId(challenge.getId());
         return solution;
     }

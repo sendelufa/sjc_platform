@@ -39,4 +39,14 @@ public class Task {
 
     private LocalDateTime lastCheckSolutions;
 
+    @Override
+    public String toString() {
+        return "*Task "+ number +"*\n {" +
+            "numberInChallenge=" + numberInChallenge +
+            ", name='" + name + '\'' +
+            ", difficult='" + difficult + '\'' +
+            ", startActiveTime=" + startActiveTime +
+            ", endActiveTime=" + endActiveTime +
+            "}";
+    }
 }
